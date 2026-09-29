@@ -14,7 +14,9 @@ pub const MAX_FEE_BPS: u32 = 1000;
 #[contract]
 pub struct MergeMintContract;
 
-include!("mutations.rs");
+include!("lifecycle.rs");
+include!("disputes.rs");
+include!("milestones.rs");
 include!("queries.rs");
 
 #[contractimpl]

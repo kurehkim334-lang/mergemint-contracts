@@ -88,6 +88,8 @@ use tower_http::{
 };
 use tracing::Level;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 mod db;
 mod metrics;

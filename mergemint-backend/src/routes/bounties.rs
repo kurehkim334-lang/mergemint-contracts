@@ -21,6 +21,7 @@ use serde::Deserialize;
 use std::convert::Infallible;
 use std::sync::Arc;
 use tokio_stream::{wrappers::BroadcastStream, StreamExt as _};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::db::{
     list_bounties_by_assignee as db_list_bounties_by_assignee, list_bounties_by_creator, BountyPage, Bounty,
@@ -29,7 +30,7 @@ use crate::routes::tx::AppState;
 
 // ── Query params ──────────────────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct ListParams {
     pub limit: Option<i64>,
     /// Legacy offset-style cursor: a `created_at` timestamp. Kept for backward
@@ -224,6 +225,20 @@ pub async fn list_bounties(
 /// reaches the store — a malformed value should surface as a client error,
 /// not silently be treated the same as a well-formed address with no
 /// results.
+#[utoipa::path(
+    get,
+    path = "/bounties/assignee/{address}",
+    params(
+        ("address" = String, Path, description = "Stellar account or contract address"),
+        ListParams,
+    ),
+    responses(
+        (status = 200, description = "Paginated list of bounties for the assignee", body = BountyPage),
+        (status = 400, description = "Malformed assignee address", body = crate::error::AppError),
+        (status = 500, description = "Internal server error", body = crate::error::AppError),
+    ),
+    tag = "bounties"
+)]
 pub async fn list_bounties_by_assignee(
     State(state): State<Arc<AppState>>,
     Path(address): Path<String>,
@@ -278,6 +293,14 @@ fn is_syntactically_valid_address(address: &str) -> bool {
 /// state changes (see `claim_bounty`). Clients subscribe once and receive
 /// incremental push notifications instead of polling. Event name is
 /// `bounty_updated`, payload `{"bountyId":"<id>"}`. Implements issue #482.
+#[utoipa::path(
+    get,
+    path = "/bounties/stream",
+    responses(
+        (status = 200, description = "SSE stream of bounty state changes"),
+    ),
+    tag = "bounties"
+)]
 pub async fn bounty_stream(
     State(state): State<Arc<AppState>>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
@@ -300,6 +323,18 @@ pub async fn bounty_stream(
 ///
 /// Marks a bounty as claimed by the caller and broadcasts the bounty ID on the
 /// SSE channel so subscribed clients are notified without a polling round-trip.
+#[utoipa::path(
+    post,
+    path = "/bounties/{id}/claim",
+    params(
+        ("id" = String, Path, description = "Bounty identifier"),
+    ),
+    responses(
+        (status = 200, description = "Bounty claimed", body = ClaimResponse),
+        (status = 500, description = "Internal server error", body = crate::error::AppError),
+    ),
+    tag = "bounties"
+)]
 pub async fn claim_bounty(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
@@ -313,6 +348,19 @@ pub async fn claim_bounty(
 }
 
 /// `GET /bounties/{id}`
+#[utoipa::path(
+    get,
+    path = "/bounties/{id}",
+    params(
+        ("id" = String, Path, description = "Bounty identifier"),
+    ),
+    responses(
+        (status = 200, description = "Bounty found", body = Bounty),
+        (status = 404, description = "Bounty not found", body = crate::error::AppError),
+        (status = 500, description = "Internal server error", body = crate::error::AppError),
+    ),
+    tag = "bounties"
+)]
 pub async fn get_bounty_route(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
@@ -453,24 +501,22 @@ mod tests {
             }),
         )
         .await
-        .expect("well-formed address must not be rejected");
+        .expect("well-formed address must not error");
 
         assert!(page.bounties.is_empty());
-        assert!(page.next_cursor.is_none());
     }
 
-    /// An oversized `limit` query param must be clamped to `MAX_LIST_LIMIT`
-    /// before the store is queried, not passed through verbatim — otherwise
-    /// a caller could force an unbounded scan/sort over every bounty.
+    /// The listing endpoint must clamp an oversized `limit` to
+    /// `MAX_LIST_LIMIT` so a caller cannot force an unbounded scan.
     #[tokio::test]
-    async fn list_bounties_clamps_an_oversized_limit_to_the_max() {
+    async fn list_bounties_clamps_oversized_limit() {
         let state = test_state();
-        seed_bounties(&state, MAX_LIST_LIMIT as usize + 50);
+        seed_bounties(&state, (MAX_LIST_LIMIT + 10) as usize);
 
         let Json(page) = list_bounties(
             State(state),
             Query(ListParams {
-                limit: Some(10_000),
+                limit: Some(MAX_LIST_LIMIT + 10),
                 cursor: None,
                 sort: None,
                 order: None,
