@@ -1,4 +1,4 @@
-import { Bounty, BountyPage, BountyStatus, Contributor } from '../types';
+import { Bounty, BountyPage, BountyStatus, Contributor, LeaderboardPage } from '../types';
 
 // All stable endpoints are versioned under /api/v1. The base URL can be
 // overridden for local development via VITE_API_BASE_URL (e.g. http://localhost:8080/api/v1).
@@ -72,5 +72,8 @@ export const api = {
   },
   getContributor(address: string): Promise<Contributor> {
     return request(`/contributors/${address}`);
+  },
+  getLeaderboard(): Promise<LeaderboardPage> {
+    return request('/contributors/leaderboard');
   },
 };

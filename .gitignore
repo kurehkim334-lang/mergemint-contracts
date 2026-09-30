@@ -24,7 +24,11 @@ dist/
 
 # Test snapshots (Jest / Vitest)
 *.snap
-__snapshots__/
+**/__snapshots__/
+
+# Vitest cache and temp files
+.vitest-cache/
+*.tmp
 
 # Code coverage
 coverage/
@@ -46,3 +50,7 @@ pkg/
 # Environment secrets (keep .env.example tracked)
 .env
 storybook-static/
+
+# AI assistant working files
+.claude/settings.local.json.tmp*
+fix.js

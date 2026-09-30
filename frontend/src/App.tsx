@@ -7,6 +7,7 @@ import { BountyList } from './pages/BountyList';
 import { BountyDetail } from './pages/BountyDetail';
 import { CreateBounty } from './pages/CreateBounty';
 import { ContributorProfile } from './pages/ContributorProfile';
+import { Leaderboard } from './pages/Leaderboard';
 
 function Nav() {
   const location = useLocation();
@@ -22,6 +23,7 @@ function Nav() {
     <nav>
       <Link to="/">Bounties</Link>
       <Link to="/create">Create Bounty</Link>
+      <Link to="/leaderboard">Leaderboard</Link>
       <WalletConnectButton address={address} onConnect={connect} />
     </nav>
   );
@@ -38,6 +40,7 @@ export default function App() {
           <Route path="/bounties/:id" element={<BountyDetail />} />
           <Route path="/create" element={<CreateBounty />} />
           <Route path="/contributors/:address" element={<ContributorProfile />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
         </Routes>
       </BrowserRouter>
     </WalletProvider>
